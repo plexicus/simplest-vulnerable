@@ -1,17 +1,2 @@
 {
-  "name": "ejemplo-vulnerabilidad",
-  "version": "1.0.0",
-  "description": "Proyecto de ejemplo con una dependencia vulnerable",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": ["ejemplo", "vulnerabilidad"],
-  "author": "Usuario de Ejemplo",
-  "license": "ISC",
-  "dependencies": {
-    "ua-parser-js": "0.7.29",
-    "express": "^4.17.1",
-    "lodash": "^4.17.21"
-  }
-}
+    "lodash": "4.17.21"
