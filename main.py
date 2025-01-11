@@ -9,6 +9,7 @@ async def read_user_input(user_input: str):
     # Esta línea introduce una vulnerabilidad XSS porque el input del usuario se
     # devuelve directamente en la respuesta sin ninguna sanitización o escape.
     # Un atacante podría ingresar un script como parte de user_input.
+    # PLEXICUS COVULOR: disable codeql=py/reflective-xss
     return f"<html><body><h1>Your input was: {user_input}</h1></body></html>"
 
 
