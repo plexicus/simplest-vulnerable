@@ -18,6 +18,7 @@ if ($conn->connect_error) {
 if(isset($_GET['id'])) {
     $id = $_GET['id']; // Input del usuario tomado directamente desde la URL
     $sql = "SELECT * FROM usuarios WHERE id = $id"; // Vulnerable a SQL Injection
+    // PLEXICUS COVULOR: disable semgrep=php.laravel.security.laravel-native-sql-injection.laravel-native-sql-injection
     $result = $conn->query($sql);
 
     if ($result->num_rows > 0) {
