@@ -12,13 +12,16 @@ $conn = new mysqli($servername, $username, $password, $dbname);
 if ($conn->connect_error) {
     die("Conexión fallida: " . $conn->connect_error);
 }
-
-// Vulnerabilidad de SQL Injection
-// El siguiente código es vulnerable a SQL Injection ya que el input del usuario se concatena directamente en la consulta SQL sin validación o sanitización.
+// Mitigación de SQL Injection
+// Usamos sentencias preparadas para evitar SQL Injection.
 if(isset($_GET['id'])) {
     $id = $_GET['id']; // Input del usuario tomado directamente desde la URL
-    $sql = "SELECT * FROM usuarios WHERE id = $id"; // Vulnerable a SQL Injection
-    $result = $conn->query($sql);
+
+    // Preparar la consulta SQL
+    $stmt = $conn->prepare("SELECT * FROM usuarios WHERE id = ?");
+    $stmt->bind_param("i", $id); // Vincular parámetros de entrada
+    $stmt->execute();
+    $result = $stmt->get_result();
 
     if ($result->num_rows > 0) {
         while($row = $result->fetch_assoc()) {
@@ -27,6 +30,8 @@ if(isset($_GET['id'])) {
     } else {
         echo "0 resultados";
     }
+
+    $stmt->close();
 }
 
 // Vulnerabilidad de Cross-Site Scripting (XSS)
