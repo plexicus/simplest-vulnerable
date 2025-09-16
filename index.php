@@ -22,7 +22,8 @@ if(isset($_GET['id'])) {
 
     if ($result->num_rows > 0) {
         while($row = $result->fetch_assoc()) {
-            echo "id: " . $row["id"]. " - Nombre: " . $row["nombre"]. "<br>";
+            // ander y daniel
+            echo "id: " . htmlspecialchars($row["id"], ENT_QUOTES, 'UTF-8'). " - Nombre: " . htmlspecialchars($row["nombre"], ENT_QUOTES, 'UTF-8'). "<br>";
         }
     } else {
         echo "0 resultados";
@@ -33,7 +34,7 @@ if(isset($_GET['id'])) {
 // El siguiente código es vulnerable a XSS ya que imprime directamente en el HTML el contenido de una variable que puede ser manipulada por el usuario sin ninguna sanitización.
 if(isset($_GET['mensaje'])) {
     $mensaje = $_GET['mensaje']; // Input del usuario susceptible a XSS
-    echo "<div>$mensaje</div>"; // Vulnerable a XSS
+    echo "<div>" . htmlspecialchars($mensaje, ENT_QUOTES, 'UTF-8') . "</div>"; // Vulnerable a XSS mitigated
 }
 
 // Cerrar conexión
