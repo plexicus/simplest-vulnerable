@@ -16,10 +16,17 @@ if ($conn->connect_error) {
 // Vulnerabilidad de SQL Injection
 // El siguiente código es vulnerable a SQL Injection ya que el input del usuario se concatena directamente en la consulta SQL sin validación o sanitización.
 if(isset($_GET['id'])) {
+    // javier secur0
     $id = $_GET['id']; // Input del usuario tomado directamente desde la URL
-    $sql = "SELECT * FROM usuarios WHERE id = $id"; // Vulnerable a SQL Injection
-    $result = $conn->query($sql);
-
+    if (filter_var($id, FILTER_VALIDATE_INT) !== false) {
+        $stmt = $conn->prepare("SELECT * FROM usuarios WHERE id = ?");
+        $stmt->bind_param("i", $id); // Binding the parameter as an integer
+        $stmt->execute();
+        $result = $stmt->get_result();
+    } else {
+        echo "Invalid ID.";
+    }
+}
     if ($result->num_rows > 0) {
         while($row = $result->fetch_assoc()) {
             echo "id: " . $row["id"]. " - Nombre: " . $row["nombre"]. "<br>";
