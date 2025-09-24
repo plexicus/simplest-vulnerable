@@ -13,15 +13,30 @@ if ($conn->connect_error) {
     die("Conexión fallida: " . $conn->connect_error);
 }
 
-// Vulnerabilidad de SQL Injection
-// El siguiente código es vulnerable a SQL Injection ya que el input del usuario se concatena directamente en la consulta SQL sin validación o sanitización.
-if(isset($_GET['id'])) {
-    $id = $_GET['id']; // Input del usuario tomado directamente desde la URL
-    $sql = "SELECT * FROM usuarios WHERE id = $id"; // Vulnerable a SQL Injection
-    $result = $conn->query($sql);
+// Spanish: Vulnerabilidad de SQL Injection
+// Spanish: El siguiente código ha sido protegido contra SQL Injection y XSS.
 
-    if ($result->num_rows > 0) {
-        while($row = $result->fetch_assoc()) {
+// Indonesia: Celah Sekuritas SQL Injection
+
+if(isset($_GET['id'])) {
+    $id = $_GET['id']; 
+    if (filter_var($id, FILTER_VALIDATE_INT)) { // Validación para asegurarse de que sea un entero
+        $stmt = $conn->prepare("SELECT * FROM usuarios WHERE id = ?");
+        $stmt->bind_param("i", $id); // Vincular el parámetro de entrada
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows > 0) {
+            while($row = $result->fetch_assoc()) {
+                echo "id: " . htmlspecialchars($row["id"]) . " - Nombre: " . htmlspecialchars($row["nombre"]) . "<br>";
+            }
+        } else {
+            echo "0 resultados";
+        }
+    } else {
+        echo "ID inválido";
+    }
+}
             echo "id: " . $row["id"]. " - Nombre: " . $row["nombre"]. "<br>";
         }
     } else {
