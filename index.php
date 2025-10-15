@@ -12,17 +12,29 @@ $conn = new mysqli($servername, $username, $password, $dbname);
 if ($conn->connect_error) {
     die("Conexión fallida: " . $conn->connect_error);
 }
-
-// Vulnerabilidad de SQL Injection
-// El siguiente código es vulnerable a SQL Injection ya que el input del usuario se concatena directamente en la consulta SQL sin validación o sanitización.
+// Resolviendo la vulnerabilidad de SQL Injection
 if(isset($_GET['id'])) {
-    $id = $_GET['id']; // Input del usuario tomado directamente desde la URL
-    $sql = "SELECT * FROM usuarios WHERE id = $id"; // Vulnerable a SQL Injection
-    $result = $conn->query($sql);
+    $id = $_GET['id'];
 
-    if ($result->num_rows > 0) {
-        while($row = $result->fetch_assoc()) {
-            echo "id: " . $row["id"]. " - Nombre: " . $row["nombre"]. "<br>";
+    // Validar que el ID sea un entero positivo
+    if (filter_var($id, FILTER_VALIDATE_INT, ["options" => ["min_range" => 1]])) {
+        // Usar una declaración preparada para evitar SQL Injection
+        $stmt = $conn->prepare("SELECT * FROM usuarios WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows > 0) {
+            while($row = $result->fetch_assoc()) {
+                echo "id: " . htmlspecialchars($row["id"]) . " - Nombre: " . htmlspecialchars($row["nombre"]) . "<br>";
+            }
+        }
+
+        $stmt->close();
+    } else {
+        echo "ID inválido.";
+    }
+}
         }
     } else {
         echo "0 resultados";
