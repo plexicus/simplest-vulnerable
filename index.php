@@ -1,41 +1,69 @@
 <?php
-// Conexión a la base de datos (modifica con tus propios parámetros de conexión)
+// Conexi3n a la base de datos (modifica con tus propios parmetros de conexin)
 $servername = "localhost";
 $username = "tu_usuario";
-$password = "tu_contraseña";
+$password = "tu_contrasea";
 $dbname = "tu_base_de_datos";
 
-// Crear conexión
+// Crear conexin
 $conn = new mysqli($servername, $username, $password, $dbname);
 
-// Verificar conexión
+// Verificar conexin
 if ($conn->connect_error) {
-    die("Conexión fallida: " . $conn->connect_error);
+    // No exponer detalles de la base de datos al usuario final
+    error_log("Conexin fallida: " . $conn->connect_error);
+    die("Conexin fallida. Intntalo de nuevo ms tarde.");
 }
 
-// Vulnerabilidad de SQL Injection
-// El siguiente código es vulnerable a SQL Injection ya que el input del usuario se concatena directamente en la consulta SQL sin validación o sanitización.
-if(isset($_GET['id'])) {
-    $id = $_GET['id']; // Input del usuario tomado directamente desde la URL
-    $sql = "SELECT * FROM usuarios WHERE id = $id"; // Vulnerable a SQL Injection
-    $result = $conn->query($sql);
+// Manejo seguro de la consulta por id usando sentencias preparadas y validacin estricta
+if (isset($_GET['id'])) {
+    $id_raw = $_GET['id']; // valor recibido desde la URL
 
-    if ($result->num_rows > 0) {
-        while($row = $result->fetch_assoc()) {
-            echo "id: " . $row["id"]. " - Nombre: " . $row["nombre"]. "<br>";
-        }
+    // Validar que solo contenga dgitos (entero no negativo) y convertirlo
+    if (!ctype_digit($id_raw)) {
+        // Registrar el evento sin incluir PII en los logs
+        error_log("Parmetro 'id' inválido recibido");
+        echo "Parmetro 'id' inválido.";
     } else {
-        echo "0 resultados";
+        $id = (int)$id_raw;
+        // Enforce a sensible range for IDs (example: 1 .. 1000000)
+        if ($id <= 0 || $id > 1000000) {
+            error_log("Parmetro 'id' fuera de rango: $id");
+            echo "Parmetro 'id' fuera de rango.";
+        } else {
+            // Preparar la sentencia para evitar SQL Injection
+            $stmt = $conn->prepare("SELECT id, nombre FROM usuarios WHERE id = ?");
+            if ($stmt === false) {
+                error_log("Error al preparar la consulta: " . $conn->error);
+                echo "Ocurrin un error. Intntalo de nuevo ms tarde.";
+            } else {
+                $stmt->bind_param("i", $id);
+                $stmt->execute();
+
+                $result = $stmt->get_result();
+                if ($result && $result->num_rows > 0) {
+                    while ($row = $result->fetch_assoc()) {
+                        // Escapar cualquier salida para prevenir XSS
+                        $safe_id = htmlspecialchars($row["id"], ENT_QUOTES, 'UTF-8');
+                        $safe_nombre = htmlspecialchars($row["nombre"], ENT_QUOTES, 'UTF-8');
+                        echo "id: " . $safe_id . " - Nombre: " . $safe_nombre . "<br>";
+                    }
+                } else {
+                    echo "0 resultados";
+                }
+                $stmt->close();
+            }
+        }
     }
 }
 
-// Vulnerabilidad de Cross-Site Scripting (XSS)
-// El siguiente código es vulnerable a XSS ya que imprime directamente en el HTML el contenido de una variable que puede ser manipulada por el usuario sin ninguna sanitización.
-if(isset($_GET['mensaje'])) {
+// Mitigar XSS: escapar la salida del parmetro 'mensaje' antes de renderizar
+if (isset($_GET['mensaje'])) {
     $mensaje = $_GET['mensaje']; // Input del usuario susceptible a XSS
-    echo "<div>$mensaje</div>"; // Vulnerable a XSS
+    $safe_mensaje = htmlspecialchars($mensaje, ENT_QUOTES, 'UTF-8');
+    echo "<div>" . $safe_mensaje . "</div>";
 }
 
-// Cerrar conexión
+// Cerrar conexin
 $conn->close();
 ?>
