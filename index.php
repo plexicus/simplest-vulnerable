@@ -14,26 +14,42 @@ if ($conn->connect_error) {
 }
 
 // Vulnerabilidad de SQL Injection
-// El siguiente código es vulnerable a SQL Injection ya que el input del usuario se concatena directamente en la consulta SQL sin validación o sanitización.
+// Se reemplazó el código vulnerable por una consulta preparada y validación de entrada.
 if(isset($_GET['id'])) {
-    $id = $_GET['id']; // Input del usuario tomado directamente desde la URL
-    $sql = "SELECT * FROM usuarios WHERE id = $id"; // Vulnerable a SQL Injection
-    $result = $conn->query($sql);
+    // Validar y castear el id a entero (allowlist de números)
+    $id = intval($_GET['id']);
 
-    if ($result->num_rows > 0) {
-        while($row = $result->fetch_assoc()) {
-            echo "id: " . $row["id"]. " - Nombre: " . $row["nombre"]. "<br>";
+    // Usar statement preparado para evitar SQL Injection
+    $stmt = $conn->prepare("SELECT id, nombre FROM usuarios WHERE id = ?");
+    if ($stmt) {
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result && $result->num_rows > 0) {
+            while($row = $result->fetch_assoc()) {
+                // Escapar salida para prevenir XSS
+                $safe_id = htmlspecialchars($row["id"], ENT_QUOTES, 'UTF-8');
+                $safe_nombre = htmlspecialchars($row["nombre"], ENT_QUOTES, 'UTF-8');
+                echo "id: " . $safe_id . " - Nombre: " . $safe_nombre . "<br>";
+            }
+        } else {
+            echo "0 resultados";
         }
+
+        $stmt->close();
     } else {
-        echo "0 resultados";
+        // Manejo de error de preparación (no revelar detalles sensibles)
+        error_log("Falló la preparación de la consulta: " . $conn->error);
+        echo "Ocurrió un error al procesar la solicitud.";
     }
 }
 
 // Vulnerabilidad de Cross-Site Scripting (XSS)
-// El siguiente código es vulnerable a XSS ya que imprime directamente en el HTML el contenido de una variable que puede ser manipulada por el usuario sin ninguna sanitización.
+// Se añadió sanitización de salida para prevenir XSS al mostrar mensajes proporcionados por el usuario.
 if(isset($_GET['mensaje'])) {
     $mensaje = $_GET['mensaje']; // Input del usuario susceptible a XSS
-    echo "<div>$mensaje</div>"; // Vulnerable a XSS
+    echo "<div>" . htmlspecialchars($mensaje, ENT_QUOTES, 'UTF-8') . "</div>";
 }
 
 // Cerrar conexión
