@@ -9,31 +9,58 @@ $dbname = "tu_base_de_datos";
 $conn = new mysqli($servername, $username, $password, $dbname);
 
 // Verificar conexión
+// demo para caixabank
 if ($conn->connect_error) {
-    die("Conexión fallida: " . $conn->connect_error);
+    // Log para administradores, sin filtrar detalles al usuario
+    error_log("Conexión a la base de datos fallida: " . $conn->connect_error);
+    http_response_code(500);
+    die("Error del servidor. Por favor, inténtelo más tarde.");
 }
 
-// Vulnerabilidad de SQL Injection
-// El siguiente código es vulnerable a SQL Injection ya que el input del usuario se concatena directamente en la consulta SQL sin validación o sanitización.
-if(isset($_GET['id'])) {
-    $id = $_GET['id']; // Input del usuario tomado directamente desde la URL
-    $sql = "SELECT * FROM usuarios WHERE id = $id"; // Vulnerable a SQL Injection
-    $result = $conn->query($sql);
+// Asegurar conjunto de caracteres para evitar problemas de encoding
+$conn->set_charset('utf8mb4');
 
-    if ($result->num_rows > 0) {
-        while($row = $result->fetch_assoc()) {
-            echo "id: " . $row["id"]. " - Nombre: " . $row["nombre"]. "<br>";
-        }
+// Uso seguro de consultas: validación de entrada + consultas preparadas
+// Validar y sanear 'id' como entero
+$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+if ($id !== null && $id !== false) {
+    // Preparar la consulta con parámetro enlazado para evitar SQL Injection
+    $stmt = $conn->prepare("SELECT id, nombre FROM usuarios WHERE id = ?");
+    if (!$stmt) {
+        // No mostrar detalles del error al usuario; registrar para diagnóstico
+        error_log("Error al preparar la consulta: " . $conn->error);
+        echo "Error al procesar la solicitud.";
     } else {
-        echo "0 resultados";
+        $stmt->bind_param("i", $id);
+        if (!$stmt->execute()) {
+            error_log("Error al ejecutar la consulta: " . $stmt->error);
+            echo "Error al procesar la solicitud.";
+        } else {
+            $result = $stmt->get_result();
+            if ($result->num_rows > 0) {
+                while ($row = $result->fetch_assoc()) {
+                    // Escapar la salida para prevenir XSS
+                    $safe_id = htmlspecialchars($row['id'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                    $safe_nombre = htmlspecialchars($row['nombre'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                    echo "id: " . $safe_id . " - Nombre: " . $safe_nombre . "<br>";
+                }
+            } else {
+                echo "0 resultados";
+            }
+        }
+        $stmt->close();
+    }
+} else {
+    // Si 'id' está presente pero no es válido, informar de forma segura
+    if (isset($_GET['id'])) {
+        echo "ID inválido.";
     }
 }
 
-// Vulnerabilidad de Cross-Site Scripting (XSS)
-// El siguiente código es vulnerable a XSS ya que imprime directamente en el HTML el contenido de una variable que puede ser manipulada por el usuario sin ninguna sanitización.
-if(isset($_GET['mensaje'])) {
-    $mensaje = $_GET['mensaje']; // Input del usuario susceptible a XSS
-    echo "<div>$mensaje</div>"; // Vulnerable a XSS
+// Mitigación de XSS: escapar cualquier salida que se muestre en HTML
+if (isset($_GET['mensaje'])) {
+    $mensaje = $_GET['mensaje'];
+    echo "<div>" . htmlspecialchars($mensaje, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "</div>";
 }
 
 // Cerrar conexión
