@@ -9,31 +9,55 @@ $dbname = "tu_base_de_datos";
 $conn = new mysqli($servername, $username, $password, $dbname);
 
 // Verificar conexión
+// mi personalizacuin
 if ($conn->connect_error) {
-    die("Conexión fallida: " . $conn->connect_error);
+    // No exponer detalles de la conexión al usuario. Registrar el error y mostrar un mensaje genérico.
+    error_log("Conexión fallida: " . $conn->connect_error);
+    die("Error de conexión a la base de datos.");
 }
 
-// Vulnerabilidad de SQL Injection
-// El siguiente código es vulnerable a SQL Injection ya que el input del usuario se concatena directamente en la consulta SQL sin validación o sanitización.
-if(isset($_GET['id'])) {
-    $id = $_GET['id']; // Input del usuario tomado directamente desde la URL
-    $sql = "SELECT * FROM usuarios WHERE id = $id"; // Vulnerable a SQL Injection
-    $result = $conn->query($sql);
+// Manejo seguro de entrada para evitar SQL Injection
+if (isset($_GET['id'])) {
+    $id_raw = $_GET['id']; // Entrada del usuario
 
-    if ($result->num_rows > 0) {
-        while($row = $result->fetch_assoc()) {
-            echo "id: " . $row["id"]. " - Nombre: " . $row["nombre"]. "<br>";
-        }
+    // Validar que el id sea numérico (whitelist): solo dígitos permitidos
+    if (!preg_match('/^\d+$/', $id_raw)) {
+        // Entrada no válida
+        echo "ID inválido";
     } else {
-        echo "0 resultados";
+        $id = (int)$id_raw;
+
+        // Preparar la consulta usando sentencias preparadas y enlazado de parámetros
+        $stmt = $conn->prepare("SELECT id, nombre FROM usuarios WHERE id = ?");
+        if ($stmt) {
+            $stmt->bind_param("i", $id);
+            $stmt->execute();
+
+            $result = $stmt->get_result();
+            if ($result && $result->num_rows > 0) {
+                while ($row = $result->fetch_assoc()) {
+                    // Escapar la salida para prevenir XSS también en datos provenientes de la BD
+                    $safe_id = htmlspecialchars($row['id'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                    $safe_nombre = htmlspecialchars($row['nombre'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                    echo "id: " . $safe_id . " - Nombre: " . $safe_nombre . "<br>";
+                }
+            } else {
+                echo "0 resultados";
+            }
+
+            $stmt->close();
+        } else {
+            // Registrar el error para auditoría sin exponer detalles al usuario
+            error_log("Prepare failed: " . $conn->error);
+            echo "Ocurrió un error al procesar la solicitud.";
+        }
     }
 }
 
-// Vulnerabilidad de Cross-Site Scripting (XSS)
-// El siguiente código es vulnerable a XSS ya que imprime directamente en el HTML el contenido de una variable que puede ser manipulada por el usuario sin ninguna sanitización.
-if(isset($_GET['mensaje'])) {
-    $mensaje = $_GET['mensaje']; // Input del usuario susceptible a XSS
-    echo "<div>$mensaje</div>"; // Vulnerable a XSS
+// Evitar XSS en parámetros de texto simples: escapar antes de imprimir
+if (isset($_GET['mensaje'])) {
+    $mensaje = $_GET['mensaje'];
+    echo "<div>" . htmlspecialchars($mensaje, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "</div>";
 }
 
 // Cerrar conexión
